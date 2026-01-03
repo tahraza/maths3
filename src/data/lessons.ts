@@ -5,6 +5,10 @@ export interface Lesson {
   duration: number
   objectives: string[]
   content: LessonSection[]
+  // Vidéo explicative optionnelle
+  videoUrl?: string           // Lien YouTube (ex: https://www.youtube.com/watch?v=XXXX)
+  videoDuration?: number      // Durée en secondes
+  videoCreator?: string       // Créateur de la vidéo (ex: "Yvan Monka")
 }
 
 export interface QuizQuestion {

@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
+import PetMessage from './PetMessage'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -65,6 +66,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   return (
     <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
       {children}
+      <PetMessage />
     </ThemeContext.Provider>
   )
 }

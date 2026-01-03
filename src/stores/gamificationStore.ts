@@ -14,6 +14,80 @@ export interface ActiveSideQuest extends SideQuest {
   claimed: boolean
 }
 
+// Objectif personnalisé de l'élève
+export interface StudentObjective {
+  targetGrade: 10 | 12 | 14 | 16 | 18 | 20
+  setAt: string
+  brevetDate: string | null
+}
+
+// Plan de révision
+export interface DailyPlan {
+  lessons: string[]
+  exercises: string[]
+  flashcards: boolean
+  examSimulation: boolean
+  completed: boolean
+}
+
+export interface RevisionPlan {
+  brevetDate: string
+  dailyPlan: Record<string, DailyPlan>
+  generatedAt: string
+}
+
+// Exigences par objectif de note
+export const OBJECTIVE_REQUIREMENTS: Record<number, {
+  minChapterMastery: number
+  examSimulations: number
+  flashcardsReviewed: number
+  exercisesCompleted: number
+  description: string
+}> = {
+  10: {
+    minChapterMastery: 50,
+    examSimulations: 1,
+    flashcardsReviewed: 50,
+    exercisesCompleted: 20,
+    description: 'Maîtrise les bases'
+  },
+  12: {
+    minChapterMastery: 60,
+    examSimulations: 2,
+    flashcardsReviewed: 100,
+    exercisesCompleted: 35,
+    description: 'Bonne compréhension générale'
+  },
+  14: {
+    minChapterMastery: 70,
+    examSimulations: 3,
+    flashcardsReviewed: 150,
+    exercisesCompleted: 50,
+    description: 'Solide dans tous les chapitres'
+  },
+  16: {
+    minChapterMastery: 80,
+    examSimulations: 4,
+    flashcardsReviewed: 200,
+    exercisesCompleted: 70,
+    description: 'Excellence et régularité'
+  },
+  18: {
+    minChapterMastery: 90,
+    examSimulations: 5,
+    flashcardsReviewed: 250,
+    exercisesCompleted: 100,
+    description: 'Maîtrise quasi-parfaite'
+  },
+  20: {
+    minChapterMastery: 95,
+    examSimulations: 6,
+    flashcardsReviewed: 300,
+    exercisesCompleted: 120,
+    description: 'Perfection totale'
+  }
+}
+
 export const POINTS = {
   LESSON_COMPLETED: 50,
   LESSON_REVIEWED: 20,
@@ -98,6 +172,11 @@ interface GamificationState {
   weeklyChallenges: ActiveChallenge[]
   sideQuests: ActiveSideQuest[]
 
+  // Objectifs et calendrier
+  objective: StudentObjective | null
+  revisionPlan: RevisionPlan | null
+  examSimulationsCompleted: number
+
   addPoints: (points: number, reason: string) => void
   spendXP: (amount: number, reason: string) => boolean
   getSpendableXP: () => number
@@ -116,6 +195,18 @@ interface GamificationState {
   claimChallengeReward: (challengeId: string) => boolean
   claimSideQuestReward: (questId: string) => boolean
   resetAllData: () => void
+
+  // Objectifs et calendrier
+  setObjective: (targetGrade: 10 | 12 | 14 | 16 | 18 | 20, brevetDate?: string) => void
+  generateRevisionPlan: () => void
+  markDayCompleted: (date: string) => void
+  incrementExamSimulations: () => void
+  getObjectiveProgress: () => {
+    exercisesProgress: number
+    flashcardsProgress: number
+    examsProgress: number
+    overallProgress: number
+  } | null
 }
 
 export const useGamificationStore = create<GamificationState>()(
@@ -137,6 +228,9 @@ export const useGamificationStore = create<GamificationState>()(
       weeklyStartDate: null,
       weeklyChallenges: [],
       sideQuests: SIDE_QUESTS.map(q => ({ ...q, progress: 0, completed: false, claimed: false })),
+      objective: null,
+      revisionPlan: null,
+      examSimulationsCompleted: 0,
 
       addPoints: (points, reason) => {
         const today = new Date().toISOString().split('T')[0]
@@ -535,7 +629,197 @@ export const useGamificationStore = create<GamificationState>()(
           weeklyStartDate: null,
           weeklyChallenges: [],
           sideQuests: SIDE_QUESTS.map(q => ({ ...q, progress: 0, completed: false, claimed: false })),
+          objective: null,
+          revisionPlan: null,
+          examSimulationsCompleted: 0,
         })
+      },
+
+      setObjective: (targetGrade, brevetDate) => {
+        const today = new Date().toISOString().split('T')[0]
+        set({
+          objective: {
+            targetGrade,
+            setAt: today,
+            brevetDate: brevetDate || null
+          }
+        })
+        // Générer le plan si la date du brevet est définie
+        if (brevetDate) {
+          get().generateRevisionPlan()
+        }
+      },
+
+      generateRevisionPlan: () => {
+        const { objective } = get()
+        if (!objective?.brevetDate) return
+
+        const brevetDate = new Date(objective.brevetDate)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+
+        const dailyPlan: Record<string, DailyPlan> = {}
+        const daysUntilBrevet = Math.ceil((brevetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+        if (daysUntilBrevet <= 0) return
+
+        // Cycle de révision sur 7 jours
+        // 0: Leçons nombres, 1: Exercices, 2: Flashcards
+        // 3: Leçons géométrie, 4: Exercices, 5: Examen blanc
+        // 6: Repos
+        const lessonsByChapter: Record<string, string[]> = {
+          nombres: ['1', '2', '3', '4', '5'],
+          fonctions: ['6', '7', '8', '9'],
+          geometrie: ['10', '11', '12', '13', '14', '15'],
+          statistiques: ['16', '17', '18', '19', '20']
+        }
+
+        const exercisesByChapter: Record<string, string[]> = {
+          nombres: ['ex-1', 'ex-2', 'ex-3', 'ex-4', 'ex-5'],
+          fonctions: ['ex-6', 'ex-7', 'ex-8', 'ex-9'],
+          geometrie: ['ex-10', 'ex-11', 'ex-12'],
+          statistiques: ['ex-13', 'ex-14']
+        }
+
+        let lessonIndex = 0
+        let exerciseIndex = 0
+        const allLessons = Object.values(lessonsByChapter).flat()
+        const allExercises = Object.values(exercisesByChapter).flat()
+
+        for (let i = 0; i < Math.min(daysUntilBrevet, 90); i++) {
+          const date = new Date(today)
+          date.setDate(date.getDate() + i)
+          const dateStr = date.toISOString().split('T')[0]
+          const dayOfWeek = date.getDay() // 0 = dimanche
+
+          // Dernière semaine avant le brevet = examens blancs intensifs
+          const isLastWeek = i >= daysUntilBrevet - 7
+
+          if (dayOfWeek === 0) {
+            // Dimanche = repos
+            dailyPlan[dateStr] = {
+              lessons: [],
+              exercises: [],
+              flashcards: false,
+              examSimulation: false,
+              completed: false
+            }
+          } else if (isLastWeek) {
+            // Dernière semaine = examens blancs + flashcards
+            dailyPlan[dateStr] = {
+              lessons: [],
+              exercises: [],
+              flashcards: true,
+              examSimulation: dayOfWeek !== 6, // Pas d'examen le samedi
+              completed: false
+            }
+          } else {
+            const cycleDay = i % 6
+
+            switch (cycleDay) {
+              case 0:
+              case 3:
+                // Jours leçons
+                dailyPlan[dateStr] = {
+                  lessons: [allLessons[lessonIndex % allLessons.length]],
+                  exercises: [],
+                  flashcards: false,
+                  examSimulation: false,
+                  completed: false
+                }
+                lessonIndex++
+                break
+              case 1:
+              case 4:
+                // Jours exercices
+                dailyPlan[dateStr] = {
+                  lessons: [],
+                  exercises: [allExercises[exerciseIndex % allExercises.length]],
+                  flashcards: false,
+                  examSimulation: false,
+                  completed: false
+                }
+                exerciseIndex++
+                break
+              case 2:
+                // Jour flashcards
+                dailyPlan[dateStr] = {
+                  lessons: [],
+                  exercises: [],
+                  flashcards: true,
+                  examSimulation: false,
+                  completed: false
+                }
+                break
+              case 5:
+                // Jour examen blanc
+                dailyPlan[dateStr] = {
+                  lessons: [],
+                  exercises: [],
+                  flashcards: false,
+                  examSimulation: true,
+                  completed: false
+                }
+                break
+            }
+          }
+        }
+
+        set({
+          revisionPlan: {
+            brevetDate: objective.brevetDate,
+            dailyPlan,
+            generatedAt: new Date().toISOString()
+          }
+        })
+      },
+
+      markDayCompleted: (date: string) => {
+        const { revisionPlan } = get()
+        if (!revisionPlan?.dailyPlan[date]) return
+
+        set({
+          revisionPlan: {
+            ...revisionPlan,
+            dailyPlan: {
+              ...revisionPlan.dailyPlan,
+              [date]: {
+                ...revisionPlan.dailyPlan[date],
+                completed: true
+              }
+            }
+          }
+        })
+      },
+
+      incrementExamSimulations: () => {
+        set((state) => ({
+          examSimulationsCompleted: state.examSimulationsCompleted + 1
+        }))
+      },
+
+      getObjectiveProgress: () => {
+        const { objective, totalExercisesCompleted, examSimulationsCompleted } = get()
+        if (!objective) return null
+
+        const requirements = OBJECTIVE_REQUIREMENTS[objective.targetGrade]
+        if (!requirements) return null
+
+        // Pour les flashcards, on devrait lire depuis flashcardStore mais on simplifie ici
+        const flashcardsReviewed = 0 // TODO: intégrer avec flashcardStore
+
+        const exercisesProgress = Math.min(100, (totalExercisesCompleted / requirements.exercisesCompleted) * 100)
+        const flashcardsProgress = Math.min(100, (flashcardsReviewed / requirements.flashcardsReviewed) * 100)
+        const examsProgress = Math.min(100, (examSimulationsCompleted / requirements.examSimulations) * 100)
+
+        const overallProgress = (exercisesProgress + flashcardsProgress + examsProgress) / 3
+
+        return {
+          exercisesProgress: Math.round(exercisesProgress),
+          flashcardsProgress: Math.round(flashcardsProgress),
+          examsProgress: Math.round(examsProgress),
+          overallProgress: Math.round(overallProgress)
+        }
       },
     }),
     {

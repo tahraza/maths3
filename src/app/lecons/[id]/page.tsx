@@ -9,6 +9,7 @@ import { useGamificationStore, POINTS } from '@/stores/gamificationStore'
 import { useState, useEffect } from 'react'
 import { BlockMath, InlineMath } from '@/components/KaTeX'
 import LessonQuiz from '@/components/LessonQuiz'
+import VideoPlayer from '@/components/VideoPlayer'
 
 const chapterColors: Record<string, string> = {
   'nombres': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -328,6 +329,22 @@ export default function LessonPage() {
             ))}
           </ul>
         </div>
+
+        {/* Vidéo explicative */}
+        {lesson.videoUrl && (
+          <div className="mb-8">
+            <VideoPlayer
+              videoUrl={lesson.videoUrl}
+              videoDuration={lesson.videoDuration}
+              videoCreator={lesson.videoCreator}
+              onComplete={() => {
+                if (mounted && store) {
+                  store.addPoints(10, `Vidéo regardée : ${lesson.title}`)
+                }
+              }}
+            />
+          </div>
+        )}
 
         {/* Contenu */}
         <div className="card mb-8">

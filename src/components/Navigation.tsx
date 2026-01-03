@@ -14,7 +14,10 @@ import {
   Sun,
   Moon,
   Star,
-  Flame
+  Flame,
+  Target,
+  Calendar,
+  FileText
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTheme } from './ThemeProvider'
@@ -25,6 +28,9 @@ const navigation = [
   { name: 'Leçons', href: '/lecons', icon: BookOpen },
   { name: 'Exercices', href: '/exercices', icon: ClipboardList },
   { name: 'Flashcards', href: '/flashcards', icon: Brain },
+  { name: 'Examen', href: '/examen', icon: FileText },
+  { name: 'Objectifs', href: '/objectifs', icon: Target },
+  { name: 'Calendrier', href: '/calendrier', icon: Calendar },
   { name: 'Stats', href: '/stats', icon: BarChart3 },
 ]
 
